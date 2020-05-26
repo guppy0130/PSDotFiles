@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Component xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../Metadata.xsd">
-    <FriendlyName>Windows PowerShell</FriendlyName>
+    <FriendlyName>PowerShell Core</FriendlyName>
 
     <Detection>
         <Method>FindInPath</Method>
-        <FindInPath>powershell</FindInPath>
+        <FindInPath>pwsh</FindInPath>
     </Detection>
 
     <InstallPath>
         <SpecialFolder>Personal</SpecialFolder>
-        <Destination>WindowsPowerShell</Destination>
+        <Destination>PowerShell</Destination>
     </InstallPath>
 </Component>
