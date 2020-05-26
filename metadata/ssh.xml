@@ -5,4 +5,9 @@
     <Detection>
         <Method>FindInPath</Method>
     </Detection>
+
+    <InstallPath>
+        <SpecialFolder>UserProfile</SpecialFolder>
+        <Destination>.ssh</Destination>
+    </InstallPath>
 </Component>
