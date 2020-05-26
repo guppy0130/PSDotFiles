@@ -9,6 +9,6 @@
 
     <InstallPath>
         <SpecialFolder>Personal</SpecialFolder>
-        <Destination>WindowsPowerShell</Destination>
+        <Destination>PowerShell</Destination>
     </InstallPath>
 </Component>
