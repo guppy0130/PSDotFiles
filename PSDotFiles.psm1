@@ -1,6 +1,10 @@
 # See the help for Set-StrictMode for the full details on what this enables.
 Set-StrictMode -Version 2.0
 
+$DefaultGlobalIgnorePaths = @(
+    '.stow-local-ignore'
+)
+
 Function Get-DotFiles {
     <#
         .SYNOPSIS
@@ -41,7 +45,7 @@ Function Get-DotFiles {
     #>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '')]
-    [CmdletBinding(ConfirmImpact='Low', SupportsShouldProcess)]
+    [CmdletBinding(ConfirmImpact = 'Low', SupportsShouldProcess)]
     Param(
         [String]$Path,
         [Switch]$Autodetect,
@@ -98,15 +102,15 @@ Function Install-DotFiles {
     #>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '')]
-    [CmdletBinding(DefaultParameterSetName='Retrieve', ConfirmImpact='Low', SupportsShouldProcess)]
+    [CmdletBinding(DefaultParameterSetName = 'Retrieve', ConfirmImpact = 'Low', SupportsShouldProcess)]
     Param(
-        [Parameter(ParameterSetName='Retrieve')]
+        [Parameter(ParameterSetName = 'Retrieve')]
         [String]$Path,
 
-        [Parameter(ParameterSetName='Retrieve')]
+        [Parameter(ParameterSetName = 'Retrieve')]
         [Switch]$Autodetect,
 
-        [Parameter(ParameterSetName='Pipeline', Mandatory, ValueFromPipeline)]
+        [Parameter(ParameterSetName = 'Pipeline', Mandatory, ValueFromPipeline)]
         [AllowEmptyCollection()]
         [Component[]]$Components,
 
@@ -142,8 +146,8 @@ Function Install-DotFiles {
             $Results = [Collections.Generic.List[Boolean]]::new()
 
             $Parameters = @{
-                'Component'=$Component
-                'SourceDirectories'=$Component.SourcePath
+                Component         = $Component
+                SourceDirectories = $Component.SourcePath
             }
 
             if (!($PSCmdlet.ShouldProcess($Name, 'Install'))) {
@@ -153,7 +157,7 @@ Function Install-DotFiles {
             Write-Debug -Message ('[{0}] Source directory is: {1}' -f $Name, $Component.SourcePath)
             Write-Debug -Message ('[{0}] Installation path is: {1}' -f $Name, $Component.InstallPath)
             $Result = Install-DotFilesComponentDirectory @Parameters
-            if ($Result) { $Results.Add($Result) }
+            $Results.AddRange($Result)
             $Component.State = Get-ComponentInstallResult -Results $Results
             $Processed.Add($Component)
         }
@@ -209,15 +213,15 @@ Function Remove-DotFiles {
     #>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '')]
-    [CmdletBinding(DefaultParameterSetName='Retrieve', ConfirmImpact='Low', SupportsShouldProcess)]
+    [CmdletBinding(DefaultParameterSetName = 'Retrieve', ConfirmImpact = 'Low', SupportsShouldProcess)]
     Param(
-        [Parameter(ParameterSetName='Retrieve')]
+        [Parameter(ParameterSetName = 'Retrieve')]
         [String]$Path,
 
-        [Parameter(ParameterSetName='Retrieve')]
+        [Parameter(ParameterSetName = 'Retrieve')]
         [Switch]$Autodetect,
 
-        [Parameter(ParameterSetName='Pipeline', Mandatory, ValueFromPipeline)]
+        [Parameter(ParameterSetName = 'Pipeline', Mandatory, ValueFromPipeline)]
         [AllowEmptyCollection()]
         [Component[]]$Components,
 
@@ -241,8 +245,8 @@ Function Remove-DotFiles {
             $Results = [Collections.Generic.List[Boolean]]::new()
 
             $Parameters = @{
-                'Component'=$Component
-                'SourceDirectories'=$Component.SourcePath
+                Component         = $Component
+                SourceDirectories = $Component.SourcePath
             }
 
             if (!($PSCmdlet.ShouldProcess($Name, 'Remove'))) {
@@ -252,7 +256,7 @@ Function Remove-DotFiles {
             Write-Debug -Message ('[{0}] Source directory is: {1}' -f $Name, $Component.SourcePath)
             Write-Debug -Message ('[{0}] Installation path is: {1}' -f $Name, $Component.InstallPath)
             $Result = Remove-DotFilesComponentDirectory @Parameters
-            if ($Result) { $Results.Add($Result) }
+            $Results.AddRange($Result)
             $Component.State = Get-ComponentInstallResult -Results $Results -Removal
             $Processed.Add($Component)
         }
@@ -280,7 +284,7 @@ Function Get-DotFilesInternal {
         if ($Component.Availability -in ([Availability]::Available, [Availability]::AlwaysInstall)) {
             $Results = [Collections.Generic.List[Boolean]]::new()
             $Result = Install-DotFilesComponentDirectory -Component $Component -SourceDirectories $Component.SourcePath -Verify
-            if ($Result) { $Results.Add($Result) }
+            $Results.AddRange($Result)
             $Component.State = Get-ComponentInstallResult -Results $Results
         }
 
@@ -321,12 +325,12 @@ Function Initialize-PSDotFiles {
     Write-Verbose -Message ('dotfiles directory: {0}' -f $DotFilesPath)
 
     if (Get-Variable -Name 'DotFilesSkipMetadataSchemaChecks' -Scope Global -ErrorAction Ignore) {
-        $script:DotFilesSkipMetadataSchemaChecks = $global:DotFilesSkipMetadataSchemaChecks
+        $script:SkipMetadataSchemaChecks = $global:DotFilesSkipMetadataSchemaChecks
     } else {
-        $script:DotFilesSkipMetadataSchemaChecks = $false
+        $script:SkipMetadataSchemaChecks = $false
     }
 
-    if (!$DotFilesSkipMetadataSchemaChecks) {
+    if (!$SkipMetadataSchemaChecks) {
         $MetadataSchemaPath = Join-Path -Path $PSScriptRoot -ChildPath 'Metadata.xsd'
         $script:MetadataSchema = New-Object -TypeName Xml.Schema.XmlSchemaSet
         $null = $MetadataSchema.Add($null, (Get-Item -Path $MetadataSchemaPath))
@@ -352,13 +356,20 @@ Function Initialize-PSDotFiles {
     Write-Verbose -Message ('Automatic component detection: {0}' -f $DotFilesAutodetect)
 
     if ($PSBoundParameters.ContainsKey('AllowNestedSymlinks')) {
-        $script:DotFilesAllowNestedSymlinks = $AllowNestedSymlinks
+        $script:AllowNestedSymlinks = $AllowNestedSymlinks
     } elseif (Get-Variable -Name 'DotFilesAllowNestedSymlinks' -Scope Global -ErrorAction Ignore) {
-        $script:DotFilesAllowNestedSymlinks = $global:DotFilesAllowNestedSymlinks
+        $script:AllowNestedSymlinks = $global:DotFilesAllowNestedSymlinks
     } else {
-        $script:DotFilesAllowNestedSymlinks = $false
+        $script:AllowNestedSymlinks = $false
     }
-    Write-Verbose -Message ('Nested symlinks permitted: {0}' -f $DotFilesAllowNestedSymlinks)
+    Write-Verbose -Message ('Nested symlinks permitted: {0}' -f $AllowNestedSymlinks)
+
+    if (Get-Variable -Name 'DotFilesGlobalIgnorePaths' -Scope Global -ErrorAction Ignore) {
+        $script:GlobalIgnorePaths = $global:DotFilesGlobalIgnorePaths
+    } else {
+        $script:GlobalIgnorePaths = $DefaultGlobalIgnorePaths
+    }
+    Write-Verbose -Message ('Global ignore paths: {0}' -f [String]::Join(', ', $GlobalIgnorePaths))
 
     # Cache these results for usage later
     $script:IsAdministrator = Test-IsAdministrator
@@ -370,14 +381,14 @@ Function Initialize-PSDotFiles {
 Function Initialize-DotFilesComponent {
     [CmdletBinding()]
     Param(
-        [Parameter(ParameterSetName='New', Mandatory)]
+        [Parameter(ParameterSetName = 'New', Mandatory)]
         [String]$Name,
 
-        [Parameter(ParameterSetName='Override', Mandatory)]
+        [Parameter(ParameterSetName = 'Override', Mandatory)]
         [Component]$Component,
 
-        [Parameter(ParameterSetName='New')]
-        [Parameter(ParameterSetName='Override', Mandatory)]
+        [Parameter(ParameterSetName = 'New')]
+        [Parameter(ParameterSetName = 'Override', Mandatory)]
         [Xml]$Metadata
     )
 
@@ -443,9 +454,9 @@ Function Initialize-DotFilesComponent {
     # Run component detection
     if ($DetectionMethod -eq 'Automatic') {
         $Parameters = @{
-            'Name'=$Name
-            'RegularExpression'=$false
-            'CaseSensitive'=$false
+            Name              = $Name
+            RegularExpression = $false
+            CaseSensitive     = $false
         }
 
         if ($Metadata.SelectSingleNode('//Component/Detection/MatchRegEx')) {
@@ -562,7 +573,7 @@ Function Initialize-DotFilesComponent {
 }
 
 Function Install-DotFilesComponentDirectory {
-    [CmdletBinding(DefaultParameterSetName='Install')]
+    [CmdletBinding(DefaultParameterSetName = 'Install')]
     Param(
         [Parameter(Mandatory)]
         [Component]$Component,
@@ -570,10 +581,10 @@ Function Install-DotFilesComponentDirectory {
         [Parameter(Mandatory)]
         [IO.DirectoryInfo[]]$SourceDirectories,
 
-        [Parameter(ParameterSetName='Simulate')]
+        [Parameter(ParameterSetName = 'Simulate')]
         [Switch]$Simulate,
 
-        [Parameter(ParameterSetName='Verify')]
+        [Parameter(ParameterSetName = 'Verify')]
         [Switch]$Verify
     )
 
@@ -607,7 +618,8 @@ Function Install-DotFilesComponentDirectory {
             $ComponentRootDir = $false
             $SourceDirectoryRelative = $SourceDirectory.FullName.Substring($SourcePath.FullName.Length + 1)
 
-            if ($SourceDirectoryRelative -in $Component.IgnorePaths) {
+            if ($SourceDirectoryRelative -in $GlobalIgnorePaths -or
+                $SourceDirectoryRelative -in $Component.IgnorePaths) {
                 Write-Debug -Message ('[{0}] Ignoring directory: {1}' -f $Name, $SourceDirectoryRelative)
                 continue
             }
@@ -681,7 +693,7 @@ Function Install-DotFilesComponentDirectory {
                 $Results.Add($true)
                 Write-Debug -Message ('[{0}] Valid directory symlink: "{1}" -> "{2}"' -f $Name, $TargetDirectory, $SymlinkTarget)
                 continue
-            } elseif ($DotFilesAllowNestedSymlinks) {
+            } elseif ($AllowNestedSymlinks) {
                 Write-Verbose -Message ('[{0}] Recursing into existing symlink with target: "{1}" -> "{2}"' -f $Name, $TargetDirectory, $SymlinkTarget)
             } else {
                 $Results.Add($false)
@@ -705,7 +717,7 @@ Function Install-DotFilesComponentDirectory {
                 $Result = Install-DotFilesComponentFile -Component $Component -SourceFiles $NextFiles
             }
 
-            if ($Result) { $Results.Add($Result) }
+            $Results.AddRange($Result)
         }
 
         # As above, but now symlink each of the directories
@@ -719,7 +731,7 @@ Function Install-DotFilesComponentDirectory {
                 $Result = Install-DotFilesComponentDirectory -Component $Component -SourceDirectories $NextDirectories
             }
 
-            if ($Result) { $Results.Add($Result) }
+            $Results.AddRange($Result)
         }
 
         # Warn if there were no items in the source path and we couldn't symlink the directory
@@ -728,11 +740,11 @@ Function Install-DotFilesComponentDirectory {
         }
     }
 
-    return $Results
+    return , $Results
 }
 
 Function Install-DotFilesComponentFile {
-    [CmdletBinding(DefaultParameterSetName='Install')]
+    [CmdletBinding(DefaultParameterSetName = 'Install')]
     Param(
         [Parameter(Mandatory)]
         [Component]$Component,
@@ -740,10 +752,10 @@ Function Install-DotFilesComponentFile {
         [Parameter(Mandatory)]
         [IO.FileInfo[]]$SourceFiles,
 
-        [Parameter(ParameterSetName='Simulate')]
+        [Parameter(ParameterSetName = 'Simulate')]
         [Switch]$Simulate,
 
-        [Parameter(ParameterSetName='Verify')]
+        [Parameter(ParameterSetName = 'Verify')]
         [Switch]$Verify
     )
 
@@ -760,7 +772,8 @@ Function Install-DotFilesComponentFile {
         $SourceFileRelative = $SourceFile.FullName.Substring($SourcePath.FullName.Length + 1)
 
         # Like directories, files may also be ignored by an <IgnorePaths> configuration.
-        if ($SourceFileRelative -in $Component.IgnorePaths) {
+        if ($SourceFileRelative -in $GlobalIgnorePaths -or
+            $SourceFileRelative -in $Component.IgnorePaths) {
             Write-Debug -Message ('[{0}] Ignoring file: {1}' -f $Name, $SourceFileRelative)
             continue
         }
@@ -857,7 +870,7 @@ Function Install-DotFilesComponentFile {
         }
     }
 
-    return $Results
+    return , $Results
 }
 
 Function Remove-DotFilesComponentDirectory {
@@ -899,7 +912,8 @@ Function Remove-DotFilesComponentDirectory {
         } else {
             $SourceDirectoryRelative = $SourceDirectory.FullName.Substring($SourcePath.FullName.Length + 1)
 
-            if ($SourceDirectoryRelative -in $Component.IgnorePaths) {
+            if ($SourceDirectoryRelative -in $GlobalIgnorePaths -or
+                $SourceDirectoryRelative -in $Component.IgnorePaths) {
                 Write-Debug -Message ('[{0}] Ignoring directory: {1}' -f $Name, $SourceDirectoryRelative)
                 continue
             }
@@ -938,7 +952,7 @@ Function Remove-DotFilesComponentDirectory {
             # are permitted we'll recurse into it. Otherwise, this could be completely fine or
             # an error. We won't remove it so just warn the user of this potential issue.
             if ($SourceDirectory.FullName -ne $SymlinkTarget) {
-                if ($DotFilesAllowNestedSymlinks) {
+                if ($AllowNestedSymlinks) {
                     if (!$Simulate) {
                         Write-Verbose -Message ('[{0}] Recursing into existing symlink with target: "{1}" -> "{2}"' -f $Name, $TargetDirectory, $SymlinkTarget)
                     }
@@ -975,7 +989,7 @@ Function Remove-DotFilesComponentDirectory {
                 $Result = Remove-DotFilesComponentFile -Component $Component -SourceFiles $NextFiles
             }
 
-            if ($Result) { $Results.Add($Result) }
+            $Results.AddRange($Result)
         }
 
         # As above, but now for directory symlinks
@@ -987,11 +1001,11 @@ Function Remove-DotFilesComponentDirectory {
                 $Result = Remove-DotFilesComponentDirectory -Component $Component -SourceDirectories $NextDirectories
             }
 
-            if ($Result) { $Results.Add($Result) }
+            $Results.AddRange($Result)
         }
     }
 
-    return $Results
+    return , $Results
 }
 
 Function Remove-DotFilesComponentFile {
@@ -1020,7 +1034,8 @@ Function Remove-DotFilesComponentFile {
         $SourceFileRelative = $SourceFile.FullName.Substring($SourcePath.FullName.Length + 1)
 
         # Like directories, files may also be ignored by an <IgnorePaths> configuration.
-        if ($SourceFileRelative -in $Component.IgnorePaths) {
+        if ($SourceFileRelative -in $GlobalIgnorePaths -or
+            $SourceFileRelative -in $Component.IgnorePaths) {
             Write-Debug -Message ('[{0}] Ignoring file: {1}' -f $Name, $SourceFileRelative)
             continue
         }
@@ -1102,7 +1117,7 @@ Function Remove-DotFilesComponentFile {
         }
     }
 
-    return $Results
+    return , $Results
 }
 
 Function Find-DotFilesComponent {
@@ -1133,7 +1148,7 @@ Function Find-DotFilesComponent {
     }
 
     $Parameters = @{
-        'Property'='Name'
+        Property = 'Name'
     }
 
     if ($Pattern) {
@@ -1154,7 +1169,7 @@ Function Find-DotFilesComponent {
 
     $MatchingPrograms = @($InstalledPrograms | Where-Object @Parameters)
 
-    return (, $MatchingPrograms)
+    return , $MatchingPrograms
 }
 
 Function Get-ComponentInstallResult {
@@ -1206,7 +1221,7 @@ Function Get-ComponentMetadata {
         throw $_
     }
 
-    if (!$DotFilesSkipMetadataSchemaChecks) {
+    if (!$SkipMetadataSchemaChecks) {
         $Metadata.Schemas = $MetadataSchema
         try {
             $Metadata.Validate($null)
@@ -1295,13 +1310,13 @@ Function Get-InstalledPrograms {
             !$Program.PSObject.Properties['ParentKeyName'] -and
             ($Program.PSObject.Properties['UninstallString'] -or $Program.PSObject.Properties['NoRemove'])) {
             $InstalledProgram = [PSCustomObject]@{
-                Name = $Program.DisplayName
-                Publisher = $null
-                InstallDate = $null
+                Name          = $Program.DisplayName
+                Publisher     = $null
+                InstallDate   = $null
                 EstimatedSize = $null
-                Version = $null
-                Location = $null
-                Uninstall = $null
+                Version       = $null
+                Location      = $null
+                Uninstall     = $null
             }
 
             if ($Program.PSObject.Properties['Publisher']) {
@@ -1333,7 +1348,7 @@ Function Get-InstalledPrograms {
     }
 
     Write-Debug -Message ('Found {0} installed programs.' -f ($InstalledPrograms | Measure-Object).Count)
-    return (, $InstalledPrograms)
+    return , $InstalledPrograms
 }
 
 Function Get-SymlinkTarget {
